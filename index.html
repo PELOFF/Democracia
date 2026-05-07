@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H203 — Flashcards Parcial</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Crimson Pro', serif; background: #0d0c0a; color: #f0ebe0; }
+
+#bg-layer {
+  position: fixed; inset: 0; z-index: 0;
+  transition: background 1.1s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none;
+}
+#bg-layer::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+#stage {
+  position: fixed; inset: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 80px 60px;
+}
+
+.card { width: 100%; max-width: 860px; perspective: 1400px; }
+
+.card-flipper {
+  width: 100%; min-height: 460px; position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.72s cubic-bezier(0.4,0,0.2,1);
+  cursor: pointer;
+}
+.card-flipper.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute; inset: 0; min-height: 460px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.034); backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; padding: 2.5rem 3rem;
+}
+.card-back {
+  transform: rotateY(180deg);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.card-back::-webkit-scrollbar { width: 3px; }
+.card-back::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.card-tag {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(255,255,255,0.28); margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.card-tag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.q-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(255,255,255,0.18); margin-bottom: 1rem;
+}
+.card-question {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+  font-weight: 400; line-height: 1.58;
+  color: rgba(240,235,220,0.95); flex: 1;
+}
+.card-question em { font-style: italic; color: rgba(210,180,100,0.9); }
+.card-footer {
+  margin-top: 2rem; padding-top: 1.25rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-sources {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  color: rgba(255,255,255,0.18); letter-spacing: 0.04em;
+  flex: 1; padding-right: 1rem; line-height: 1.5;
+}
+.flip-hint {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.1em; color: rgba(255,255,255,0.2);
+  text-transform: uppercase; display: flex; align-items: center;
+  gap: 0.5rem; flex-shrink: 0;
+}
+.a-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(255,255,255,0.2); margin-bottom: 1.1rem; flex-shrink: 0;
+}
+.card-answer {
+  font-size: 15.5px; line-height: 1.82;
+  color: rgba(240,235,220,0.78); font-weight: 300; flex: 1;
+}
+.card-answer p { margin-bottom: 0.85rem; }
+.card-answer p:last-child { margin-bottom: 0; }
+.card-answer strong { font-weight: 500; color: rgba(240,235,220,0.96); }
+.back-footer {
+  margin-top: 1.5rem; padding-top: 1rem; flex-shrink: 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.back-footer span {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.1em; color: rgba(255,255,255,0.18); text-transform: uppercase;
+}
+
+.semana-bar {
+  position: fixed; top: 1.8rem; left: 50%; transform: translateX(-50%);
+  z-index: 10; display: flex; align-items: center; gap: 0.45rem;
+}
+.sem-pill {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 11px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.22); cursor: pointer; transition: all 0.2s;
+}
+.sem-pill:hover { border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.5); }
+.sem-pill.active { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.88); }
+
+.nav-bar {
+  position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  z-index: 10; display: flex; align-items: center; gap: 1.25rem;
+}
+.nav-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04); backdrop-filter: blur(8px);
+  color: rgba(255,255,255,0.5); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); }
+.nav-btn:disabled { opacity: 0.18; cursor: not-allowed; }
+.nav-btn svg { width: 16px; height: 16px; }
+.nav-counter {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: 0.14em; color: rgba(255,255,255,0.25); min-width: 54px; text-align: center;
+}
+
+#overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0); pointer-events: none; transition: background 0.2s;
+}
+#overlay.flash { background: rgba(0,0,0,0.3); }
+
+.card { animation: cardIn 0.55s cubic-bezier(0.16,1,0.3,1) both; }
+@keyframes cardIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+<div id="bg-layer"></div>
+<div id="overlay"></div>
+<div class="semana-bar" id="semana-bar"></div>
+<div id="stage">
+  <div class="card" id="card">
+    <div class="card-flipper" id="flipper" onclick="handleFlip()">
+      <div class="card-face">
+        <div class="card-tag"><div class="card-tag-dot" id="tag-dot"></div><span id="tag-text"></span></div>
+        <div class="q-label">Pregunta</div>
+        <div class="card-question" id="card-question"></div>
+        <div class="card-footer">
+          <div class="card-sources" id="card-sources"></div>
+          <div class="flip-hint">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" width="14" height="14"><path d="M2 8c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6" stroke-linecap="round"/><path d="M10 6l2 2-2 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Clic para respuesta
+          </div>
+        </div>
+      </div>
+      <div class="card-face card-back">
+        <div class="a-label">Respuesta</div>
+        <div class="card-answer" id="card-answer"></div>
+        <div class="back-footer"><span>Clic para volver a la pregunta</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="nav-bar">
+  <button class="nav-btn" id="btn-prev" onclick="prevCard()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3L5 8l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <span class="nav-counter" id="nav-counter"></span>
+  <button class="nav-btn" id="btn-next" onclick="nextCard()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<script>
+const D = [
+  { sid:2, slabel:'Sem. 2 — Antigüedad', scolor:'rgba(80,120,200,0.85)',
+    sbg:'radial-gradient(ellipse 130% 90% at 25% -5%, rgba(60,100,180,0.28) 0%, transparent 55%), radial-gradient(ellipse 80% 60% at 85% 110%, rgba(180,145,55,0.2) 0%, transparent 55%), #080e1a',
+    q:'¿Qué entiende Pericles por democracia y en qué difiere del gobierno de pocos? ¿Cuál es la tensión entre el discurso ideal y la Atenas real?',
+    src:'Pericles, Discurso Fúnebre (Tucídides II §§34–46)',
+    a:'<p>En el §37, Pericles define la democracia como el régimen en que el gobierno <strong>"no depende de pocos, sino de un número mayor"</strong>. Tres rasgos la distinguen del gobierno de pocos: <strong>igualdad ante la ley</strong> en los conflictos privados, acceso a los cargos según el <strong>mérito</strong> —no según la clase o la riqueza—, y <strong>libertad civil</strong>: nadie interfiere en la vida privada del otro. En el §41 añade que el ciudadano que no participa en la vida pública es considerado inútil, no simplemente pacífico: la participación cívica es un deber.</p><p>La tensión con la Atenas real es profunda. La democracia que Pericles elogia excluía sistemáticamente a las mujeres, a los esclavos —aproximadamente un tercio de la población— y a los metecos. En 451 a.C. el propio Pericles endureció los requisitos de ciudadanía exigiendo que ambos progenitores fueran atenienses. Además, el discurso es en sí mismo un acto de propaganda: Pericles dominaba la asamblea por carisma personal, lo que contradice el ideal de igualdad que proclama. El Discurso Fúnebre es el texto fundacional de la autojustificación democrática, no un retrato fiel de las instituciones.</p>'
+  },
+  { sid:2, slabel:'Sem. 2 — Antigüedad', scolor:'rgba(80,120,200,0.85)',
+    sbg:'radial-gradient(ellipse 130% 90% at 25% -5%, rgba(60,100,180,0.28) 0%, transparent 55%), radial-gradient(ellipse 80% 60% at 85% 110%, rgba(180,145,55,0.2) 0%, transparent 55%), #080e1a',
+    q:'¿Cuáles son las seis formas de gobierno según Aristóteles, cuál es el criterio que las distingue, y por qué la <em>politia</em> es el régimen más estable?',
+    src:'Bobbio, caps. Platón / Aristóteles / Polibio',
+    a:'<p>Aristóteles combina dos criterios: <strong>quién gobierna</strong> (uno, pocos o muchos) y <strong>en beneficio de quién</strong> (interés común o particular). Las formas buenas son monarquía, aristocracia y politia; sus versiones corruptas son tiranía, oligarquía y democracia.</p><p>Punto clave: la diferencia entre oligarquía y democracia no es numérica sino cualitativa. La oligarquía es el gobierno de los <strong>ricos</strong> en su propio interés; la democracia, el de los <strong>pobres</strong> en el suyo. No importa si son pocos o muchos, sino el grupo social que gobierna.</p><p>La <strong>politia</strong> es el régimen ideal alcanzable porque mezcla oligarquía y democracia tomando lo mejor de cada una. Su estabilidad descansa en la <strong>clase media</strong>: donde este grupo es numeroso y supera a los extremos, hay menos motivos para la sedición. Aristóteles aplica aquí su ideal ético del <em>mesotés</em> —la virtud como punto medio entre excesos— al plano político: el equilibrio social produce estabilidad institucional.</p>'
+  },
+  { sid:2, slabel:'Sem. 2 — Antigüedad', scolor:'rgba(80,120,200,0.85)',
+    sbg:'radial-gradient(ellipse 130% 90% at 25% -5%, rgba(60,100,180,0.28) 0%, transparent 55%), radial-gradient(ellipse 80% 60% at 85% 110%, rgba(180,145,55,0.2) 0%, transparent 55%), #080e1a',
+    q:'¿Qué es la anaciclosis de Polibio, cómo funciona el ciclo, y qué solución propone? ¿Hay contradicción entre la anaciclosis y el gobierno mixto?',
+    src:'Bobbio, cap. Polibio',
+    a:'<p>Polibio sostiene que las seis formas de gobierno se suceden casi inevitablemente en un ciclo llamado <strong>anaciclosis</strong>: <strong>reino → tiranía → aristocracia → oligarquía → democracia → oclocracia</strong>, y vuelta al inicio. Cada forma lleva en sí el germen de su propia degeneración: el rey bueno genera hábitos de deferencia que sus sucesores explotan para la tiranía, la nobleza que reemplaza al tirano acapara el poder para sí misma, y así sucesivamente.</p><p>La solución es el <strong>gobierno mixto romano</strong>, que combina el elemento monárquico (cónsules), aristocrático (senado) y democrático (comicios). Cada poder puede frenar a los otros; el equilibrio recíproco impide que ninguno degenere.</p><p>Bobbio señala una aparente contradicción: si todo cae por la anaciclosis, ¿cómo el mixto es estable? La resolución es que el mixto dura <em>mucho más</em> que los regímenes simples, pero no eternamente. Cuando el equilibrio se rompe en favor de una de las partes, el régimen se vuelve simple y reingresa al ciclo.</p>'
+  },
+  { sid:2, slabel:'Sem. 2 — Antigüedad', scolor:'rgba(80,120,200,0.85)',
+    sbg:'radial-gradient(ellipse 130% 90% at 25% -5%, rgba(60,100,180,0.28) 0%, transparent 55%), radial-gradient(ellipse 80% 60% at 85% 110%, rgba(180,145,55,0.2) 0%, transparent 55%), #080e1a',
+    q:'¿Qué reformas construyeron la democracia ateniense según Hornblower y cuáles fueron sus límites reales?',
+    src:'Hornblower, "Instituciones democráticas en la antigua Grecia"',
+    a:'<p>Hornblower identifica tres reformas fundacionales. <strong>Solón (594 a.C.)</strong>: abolió la servidumbre por deudas (<em>seisachtheia</em>), abrió los cargos según riqueza —no nacimiento— y creó el tribunal de apelación (heliaia) y el Consejo de 400. <strong>Clístenes (508 a.C.)</strong>: reemplazó las cuatro tribus hereditarias por diez tribus artificiales organizadas por residencia, instituyó el Consejo de 500 con rotación por sorteo e introdujo la <em>isegoría</em> (igualdad de palabra) y el ostracismo. <strong>Efialtes (~460 a.C.)</strong>: recortó los poderes del Areópago e instituyó la paga para jurados y consejeros, posible gracias al ingreso imperial —vínculo inescapable entre imperialismo y democracia radical.</p><p>Los límites son igualmente estructurales: excluían a mujeres, esclavos (un tercio de la población) y metecos. El propio Pericles endureció los requisitos de ciudadanía en 451 a.C. La democracia más participativa del mundo antiguo era, al mismo tiempo, una de las más excluyentes.</p>'
+  },
+  { sid:3, slabel:'Sem. 3 — Medievo', scolor:'rgba(190,140,50,0.85)',
+    sbg:'radial-gradient(ellipse 110% 75% at 72% -5%, rgba(175,100,25,0.26) 0%, transparent 60%), radial-gradient(ellipse 65% 65% at 8% 100%, rgba(130,70,15,0.20) 0%, transparent 55%), #0f0d07',
+    q:'¿Por qué Bobbio llama "intermedio" al período medieval y cuál es la concepción cristiana del Estado? ¿Qué paralelo traza con Marx?',
+    src:'Bobbio, cap. V (Intermedio)',
+    a:'<p>Bobbio llama "intermedio" al Medievo porque es un paréntesis en el debate sobre las formas de gobierno. Dos causas lo explican. Primera: la <em>Política</em> de Aristóteles era desconocida hasta fines del siglo XIII; cuando se redescubrió fue repetida mecánicamente por Tomás de Aquino sin correspondencia real con la política medieval. Segunda: la concepción cristiana del Estado era <strong>negativa</strong>. El Estado no existe para promover el bien sino para contener la maldad humana derivada del pecado original. Isidoro de Sevilla lo formula: los príncipes son elegidos "para que con el terror salven del mal a sus pueblos". La contraposición no es entre formas buenas y malas sino entre <strong>Estado e Iglesia</strong>: la salvación pertenece a la Iglesia, no al poder temporal.</p><p>El paralelo con Marx es preciso: también Marx tiene una <strong>concepción negativa del Estado</strong> —es la "dictadura de la burguesía", instrumento de dominación de clase. En ambos casos el Estado está destinado a desaparecer cuando desaparezca su causa: el pecado (visión cristiana) o las clases sociales (visión marxista). Y en ambos hay un "después" positivo: el reino de Dios o la sociedad sin clases.</p>'
+  },
+  { sid:3, slabel:'Sem. 3 — Medievo', scolor:'rgba(190,140,50,0.85)',
+    sbg:'radial-gradient(ellipse 110% 75% at 72% -5%, rgba(175,100,25,0.26) 0%, transparent 60%), radial-gradient(ellipse 65% 65% at 8% 100%, rgba(130,70,15,0.20) 0%, transparent 55%), #0f0d07',
+    q:'¿Cuál es la tesis más original de Maquiavelo en los Discursos sobre el conflicto romano? ¿Por qué Roma supera a Esparta como modelo republicano?',
+    src:'Maquiavelo, Discursos I caps. II–V · Bobbio, cap. VI',
+    a:'<p>En <em>El Príncipe</em>, Maquiavelo opera una <strong>bipartición</strong>: todos los Estados son repúblicas o principados. El criterio no es el número de gobernantes sino el titular de la voluntad soberana: una persona física (principado) o un órgano colectivo (república). Los principados nuevos se clasifican según el modo de conquista —por virtud, fortuna, maldad o consenso— y el criterio de evaluación es siempre el <strong>éxito</strong>, no la moral.</p><p>La tesis más original está en los <em>Discursos</em>, cap. IV: los <strong>tumultos</strong> entre patricios y plebeyos —que la tradición condenaba como desorden— fueron en realidad <strong>la primera causa de la libertad de Roma</strong>. Las buenas leyes nacen del desacuerdo bien encauzado; la tensión entre clases, si tiene salida institucional, fortalece a la república. La institución de los tribunos de la plebe fue producto directo de ese conflicto.</p><p>Por eso Roma supera a Esparta: Esparta fue ordenada por un único legislador (Licurgo), lo cual le dio estabilidad pero rigidez. Roma alcanzó su mezcla constitucional <em>por accidente</em>, a través de la historia real y el conflicto. Para Maquiavelo, esa evolución orgánica es más virtuosa que cualquier diseño racional.</p>'
+  },
+  { sid:3, slabel:'Sem. 3 — Medievo', scolor:'rgba(190,140,50,0.85)',
+    sbg:'radial-gradient(ellipse 110% 75% at 72% -5%, rgba(175,100,25,0.26) 0%, transparent 60%), radial-gradient(ellipse 65% 65% at 8% 100%, rgba(130,70,15,0.20) 0%, transparent 55%), #0f0d07',
+    q:'¿Qué aportaron las ciudades-república italianas al pensamiento democrático y por qué no pueden considerarse democracias modernas?',
+    src:'Skinner, "Las ciudades-república italianas"',
+    a:'<p>Desde fines del siglo XI, ciudades del norte de Italia (Florencia, Siena, Pisa…) eligieron sus propios <strong>cónsules</strong> y redactaron constituciones escritas, desafiando la soberanía imperial y papal. Sin embargo, no son democracias modernas por dos razones. Primera: <strong>extrema inestabilidad</strong> —la lucha de facciones fue endémica y para el siglo XIV la mayoría había entregado sus constituciones a <em>signori</em> hereditarios (Visconti en Milán, Medici en Florencia). Segunda: el término "democracia" les habría horrorizado. Siguiendo a Aristóteles vía Tomás de Aquino, democracia equivalía a gobierno corrupto de la plebe; el voto estaba reservado a varones propietarios con residencia y patrimonio acreditados.</p><p>Sus aportes reales fueron: (1) Marsilio de Padua (<em>Defensor pacis</em>, 1324) formuló que el legislador último es "el pueblo, o su parte prevalente" y que el representante puede ser revocado. (2) Desarrollaron la ecuación <strong>libertad = república</strong> (<em>Libertas</em> inscripta en las puertas de Luca y el Palazzo Pubblico de Siena). (3) Establecieron el principio electivo con <em>sindicatus</em> —rendición de cuentas obligatoria al expirar el mandato.</p>'
+  },
+  { sid:4, slabel:'Sem. 4 — El Pueblo', scolor:'rgba(40,160,115,0.85)',
+    sbg:'radial-gradient(ellipse 110% 85% at 18% 18%, rgba(25,105,72,0.25) 0%, transparent 58%), radial-gradient(ellipse 75% 65% at 92% 82%, rgba(18,75,52,0.20) 0%, transparent 55%), #070e0b',
+    q:'¿Qué significa para Morgan que la soberanía popular es una "ficción política"? ¿Cómo surgió históricamente en la Revolución inglesa?',
+    src:'Morgan, La invención del pueblo, caps. 2–3',
+    a:'<p>Morgan argumenta que la <strong>soberanía popular</strong> —la idea de que el poder emana del pueblo— es una ficción política funcional, comparable al derecho divino de los reyes que reemplazó. No es una mentira útil sino una construcción necesaria para que el gobierno resulte legítimo. La ficción nueva abre más espacio para el cambio que la antigua.</p><p>La representación surgió en el siglo XIII como imposición desde arriba: el rey convocaba representantes para comprometer a sus electores con el pago de impuestos (<em>plena potestas</em>). Desde el inicio contenía una paradoja —el representante es súbdito pero al hablar por toda la comunidad se eleva por encima de ella.</p><p>En la <strong>Revolución inglesa de los años 1640</strong>, el conflicto con Carlos I forzó al Parlamento a buscar una base alternativa al derecho divino del rey. Henry Parker y otros formularon que el pueblo es soberano y el Parlamento lo encarna. Los <strong>levellers</strong> (Lilburne, Overton, Walwyn) llevaron la ficción más lejos: propusieron el "Acuerdo del Pueblo" —una constitución fundamental que los ciudadanos firmarían directamente, limitando al propio Parlamento. Este los aplastó. La moraleja de Morgan: la soberanía popular fue inventada por los representantes para justificar su propio poder, no para empoderar al pueblo real.</p>'
+  },
+  { sid:4, slabel:'Sem. 4 — El Pueblo', scolor:'rgba(40,160,115,0.85)',
+    sbg:'radial-gradient(ellipse 110% 85% at 18% 18%, rgba(25,105,72,0.25) 0%, transparent 58%), radial-gradient(ellipse 75% 65% at 92% 82%, rgba(18,75,52,0.20) 0%, transparent 55%), #070e0b',
+    q:'¿Qué es el "principio de distinción" según Manin y cómo lo ilustran los casos de Inglaterra, Francia y EE.UU.? ¿Qué revela el debate antifederalistas/federalistas?',
+    src:'Manin, Los principios del gobierno representativo, cap. 3',
+    a:'<p>Manin sostiene que el <strong>principio de distinción</strong> —los representantes electos deben ser y serán socialmente superiores a quienes los eligen— no fue un defecto accidental sino un rasgo <em>deliberado</em>. La clave: la elección (a diferencia del sorteo, el mecanismo democrático ateniense) tiende naturalmente a producir élites.</p><p>En <strong>Inglaterra</strong>, la "deferencia" cultural y los costos astronómicos de campaña excluían a los pobres; en 1710 se legalizó un requisito patrimonial formal para los parlamentarios. En <strong>Francia</strong>, la Asamblea Constituyente estableció el <em>marc d\'argent</em> (500 jornales) como requisito de elegibilidad —cuando fue derogado, la elección indirecta con electores de segunda fase con alto requisito fiscal cumplió la misma función; la Convención era "una asamblea de juristas elegida por campesinos". En <strong>EE.UU.</strong>, sin requisito formal por desacuerdo sobre el umbral, Madison esperaba que los grandes distritos produjeran el mismo efecto de selección de élites.</p><p>El debate entre <strong>antifederalistas</strong> (representantes semejantes a los representados, un "cuadro real del pueblo") y <strong>federalistas</strong> (la responsabilidad electoral periódica basta, sin necesidad de semejanza) revela que el gobierno representativo nació como sistema de distinción, no de similitud.</p>'
+  },
+  { sid:5, slabel:'Sem. 5 — EE.UU.', scolor:'rgba(185,60,45,0.85)',
+    sbg:'radial-gradient(ellipse 95% 65% at 82% -2%, rgba(165,38,28,0.24) 0%, transparent 55%), radial-gradient(ellipse 75% 65% at 8% 102%, rgba(28,48,128,0.20) 0%, transparent 55%), #0f0909',
+    q:'¿Por qué Madison prefiere en El Federalista N° 10 una república extensa a una democracia directa para controlar las facciones?',
+    src:'El Federalista, N° 10 (Madison)',
+    a:'<p>Madison define <strong>facción</strong> como cualquier grupo de ciudadanos movido por un impulso pasional o de interés contrario a los derechos de otros o al bien común. Las facciones son inevitables porque nacen de la libertad misma: suprimir la libertad para eliminarlas sería peor que la enfermedad.</p><p>La <strong>democracia directa</strong> fracasa porque en una comunidad pequeña donde todos deliberan en persona, una facción mayoritaria puede tiranizar a la minoría sin ningún freno institucional. La homogeneidad del grupo facilita la coalición opresora.</p><p>La <strong>república representativa extensa</strong> ofrece dos ventajas decisivas. Primero, la representación <em>refina y extiende</em> las opiniones populares a través de ciudadanos de mayor sabiduría y virtud —eco del principio de distinción de Manin. Segundo, en una república grande hay tal diversidad de intereses, sectas y facciones que resulta extraordinariamente difícil que alguna forme una coalición mayoritaria estable. La extensión territorial, paradójicamente, es una <strong>ventaja republicana</strong>: cuantos más intereses distintos haya, menos probable es que uno solo domine.</p>'
+  },
+  { sid:5, slabel:'Sem. 5 — EE.UU.', scolor:'rgba(185,60,45,0.85)',
+    sbg:'radial-gradient(ellipse 95% 65% at 82% -2%, rgba(165,38,28,0.24) 0%, transparent 55%), radial-gradient(ellipse 75% 65% at 8% 102%, rgba(28,48,128,0.20) 0%, transparent 55%), #0f0909',
+    q:'¿Cómo aborda El Federalista N° 51 el problema de la tiranía dentro del propio sistema republicano?',
+    src:'El Federalista, N° 51 (Madison/Hamilton)',
+    a:'<p>El Federalista N° 51 parte de una premisa radicalmente realista: <strong>"Si los hombres fueran ángeles no haría falta gobierno; si los ángeles gobernaran no harían falta controles"</strong>. Dado que quienes gobiernan son seres humanos con intereses propios, el diseño institucional no puede descansar en la virtud individual sino en mecanismos que hagan que los vicios se controlen mutuamente.</p><p>La solución es la <strong>separación de poderes</strong> con frenos y contrapesos (<em>checks and balances</em>): hay que dar a cada rama del gobierno los medios constitucionales para resistir la usurpación de las otras. La máxima que resume el principio: <strong>la ambición debe contrarrestar a la ambición</strong>. El ejecutivo tiene el veto; el legislativo controla el presupuesto; el judicial revisa la constitucionalidad.</p><p>El <strong>bicameralismo</strong> —Senado y Cámara de Representantes con distintas formas de elección y mandatos— agrega una capa adicional dentro del poder legislativo. Finalmente, la sociedad plural —muchas sectas, muchos intereses— impide que una mayoría opresiva se consolide. El diseño institucional reemplaza la confianza en la virtud personal como garantía de la libertad.</p>'
+  },
+  { sid:5, slabel:'Sem. 5 — EE.UU.', scolor:'rgba(185,60,45,0.85)',
+    sbg:'radial-gradient(ellipse 95% 65% at 82% -2%, rgba(165,38,28,0.24) 0%, transparent 55%), radial-gradient(ellipse 75% 65% at 8% 102%, rgba(28,48,128,0.20) 0%, transparent 55%), #0f0909',
+    q:'¿En qué se diferencia la democracia jacksoniana del republicanismo de los Fundadores? ¿Cómo se vincula con el "principio de distinción" de Manin?',
+    src:'Jackson, "La mayoría debe gobernar" · Manin, cap. 3',
+    a:'<p>El republicanismo de los Fundadores confiaba en que las <strong>élites ilustradas</strong> actuarían como filtro del poder popular: representantes superiores a sus electores que refinarían y extenderían la voluntad popular. Era, en el lenguaje de Manin, la expresión perfecta del <strong>principio de distinción</strong>: gobernar bien requiere gobernar mejor que el pueblo.</p><p>Andrew Jackson representa una ruptura. Para él, el <strong>pueblo común</strong> tiene suficiente sentido común para gobernarse: no necesita tutela de élites. El principio central es que la voluntad de la mayoría es la fuente primaria de toda autoridad. En su primer mensaje al Congreso (1829) propone la <strong>rotación de cargos</strong>: los funcionarios no deben permanecer indefinidamente porque crean una casta separada del pueblo.</p><p>En los términos de Manin, Jackson desplaza el gobierno representativo del <strong>principio de distinción</strong> hacia el <strong>principio de semejanza</strong>: el representante debe ser como los representados, no superior a ellos. Es el primer gran cuestionamiento igualitarista al carácter aristocrático-electivo del sistema fundacional americano.</p>'
+  },
+  { sid:6, slabel:'Sem. 6 — Ilustración', scolor:'rgba(60,110,210,0.85)',
+    sbg:'radial-gradient(ellipse 105% 72% at 52% -8%, rgba(45,78,160,0.25) 0%, transparent 60%), radial-gradient(ellipse 65% 65% at 92% 92%, rgba(185,132,38,0.18) 0%, transparent 55%), #070c13',
+    q:'¿Qué entiende Kant por "minoría de edad autoculpable" y cuál es la distinción entre uso público y privado de la razón?',
+    src:'Kant, "¿Qué es la Ilustración?" (1784)',
+    a:'<p>Kant define la <strong>Ilustración</strong> como "la salida del hombre de su minoría de edad autoculpable". La minoría de edad es la incapacidad de servirse del propio entendimiento sin guía ajena. La califica de <em>autoculpable</em> porque su causa no es falta de inteligencia sino falta de <strong>decisión y valor</strong>: la pereza y la cobardía llevan a preferir que otros piensen por uno. Lema: <em>Sapere aude</em> —atrévete a saber.</p><p>La distinción central es entre <strong>uso público</strong> y <strong>uso privado</strong> de la razón. El uso público es el que un académico o escritor hace "ante el gran público del mundo"; este uso debe ser <em>siempre libre</em>: es la condición de posibilidad de la Ilustración. El uso privado es el que alguien hace en el ejercicio de una función social asignada: el soldado obedece órdenes, el funcionario aplica reglamentos. En ese rol, la obediencia puede ser exigida.</p><p>La paradoja aparente —mayor obediencia en lo privado— es resuelta por Kant: precisamente esa obediencia ordena la sociedad, liberando espacio para que la razón pública avance gradualmente. <strong>"Razonad tanto como queráis, ¡pero obedeced!"</strong> No hace falta la revolución; basta la libertad de prensa y de crítica pública.</p>'
+  },
+  { sid:6, slabel:'Sem. 6 — Ilustración', scolor:'rgba(60,110,210,0.85)',
+    sbg:'radial-gradient(ellipse 105% 72% at 52% -8%, rgba(45,78,160,0.25) 0%, transparent 60%), radial-gradient(ellipse 65% 65% at 92% 92%, rgba(185,132,38,0.18) 0%, transparent 55%), #070c13',
+    q:'¿Cuál es la distinción central de Constant entre libertad antigua y moderna, y qué diagnóstico hace del error jacobino?',
+    src:'Constant, "Libertad de los antiguos comparada con la de los modernos" (1819)',
+    a:'<p>La <strong>libertad antigua</strong> consistía en la participación directa y colectiva en el poder soberano: deliberar sobre la guerra y la paz, votar leyes, juzgar magistrados. El individuo era políticamente activo pero privadamente esclavo: sin independencia de conciencia, religión ni movimiento. La comunidad absorbía al individuo.</p><p>La <strong>libertad moderna</strong> es casi lo opuesto: consiste en el goce tranquilo de la independencia privada (propiedad, circulación, opinión, culto). La participación política es indirecta y periódica. El individuo es soberano en su esfera privada aunque invisible en la pública.</p><p>Tres razones históricas explican por qué no podemos volver al modelo antiguo: (1) los Estados modernos son inmensos —el individuo pierde toda influencia en la multitud; (2) la abolición de la esclavitud eliminó el ocio gratuito que permitía la participación constante; (3) el <strong>comercio</strong> reemplazó a la guerra, creando amor por la independencia privada incompatible con la política continua.</p><p>El error jacobino fue <strong>confundir ambas libertades</strong>: inspirados en Rousseau, quisieron imponer participación colectiva antigua en el mundo moderno. El resultado fue el Terror. Constant no aboga por renunciar a la participación política —eso lleva al despotismo— sino por combinar ambas libertades en un gobierno representativo que garantice a la vez derechos civiles y participación periódica.</p>'
+  },
+  { sid:6, slabel:'Sem. 6 — Ilustración', scolor:'rgba(60,110,210,0.85)',
+    sbg:'radial-gradient(ellipse 105% 72% at 52% -8%, rgba(45,78,160,0.25) 0%, transparent 60%), radial-gradient(ellipse 65% 65% at 92% 92%, rgba(185,132,38,0.18) 0%, transparent 55%), #070c13',
+    q:'¿Por qué Hobsbawm sostiene que la Revolución Francesa fue la más radical de su época y cuál fue su legado político de largo plazo?',
+    src:'Hobsbawm, La era de la revolución, cap. 3',
+    a:'<p>Hobsbawm encuadra el período 1789–1848 en torno a una <strong>"doble revolución"</strong>: la Industrial (Gran Bretaña) y la Política (Francia). La francesa fue incomparablemente más radical: ocurrió en el Estado más grande de Europa —1 de cada 5 europeos era francés— y fue mucho más profunda socialmente que la americana, que básicamente conservó las estructuras previas sin el dominio inglés.</p><p>Las fases del proceso: 1789 (Declaración de DDHH, abolición del feudalismo); 1792–94 (radicalización jacobina, guerra exterior, Terror, nación en armas —movilización de masas sin precedente); Thermidor 1794 (reacción burguesa, caída de Robespierre); Napoleón (consolida los logros sociales con el <em>Code Civil</em> y los exporta militarmente por Europa).</p><p>El legado de largo plazo es el <strong>vocabulario y los programas políticos modernos</strong>. Izquierda y derecha nacen de la disposición en la Asamblea Nacional. El liberalismo, el conservadurismo y el socialismo se definen en relación con la Revolución: a favor, en contra o más allá de ella. Francia dio los modelos a los movimientos democráticos, nacionalistas y radicales de todo el siglo XIX.</p>'
+  },
+  { sid:7, slabel:'Sem. 7 — Restauración', scolor:'rgba(165,60,75,0.85)',
+    sbg:'radial-gradient(ellipse 95% 65% at 28% -2%, rgba(128,38,50,0.25) 0%, transparent 60%), radial-gradient(ellipse 75% 65% at 82% 102%, rgba(85,28,38,0.20) 0%, transparent 55%), #0f0808',
+    q:'¿En qué consiste la crítica de Burke a la Revolución Francesa y qué papel le asigna a la herencia y la tradición?',
+    src:'Burke, Reflexiones sobre la Revolución Francesa (1790)',
+    a:'<p>Burke rechaza el principio mismo sobre el que se funda la Revolución: que los derechos políticos pueden construirse desde cero a partir de la razón abstracta. Los derechos no son universales ni atemporales sino <strong>libertades concretas</strong> probadas por la experiencia histórica, transmitidas de generación en generación. La constitución inglesa es superior porque es una herencia acumulada de siglos, no un diseño racional. Su fórmula más célebre: la nación es <strong>"un contrato entre los muertos, los vivos y los que están por nacer"</strong>.</p><p>La crítica a la Revolución es doble. Primero, destruye instituciones centenarias para reemplazarlas por abstracciones sin base histórica: el "espíritu de innovación" es propio de mentes estrechas que no comprenden la complejidad de lo que destruyen. Segundo, los derechos del hombre en abstracto son peligrosos: sin obligaciones heredadas, no hay límite para el fanatismo. Burke predice con precisión que la Revolución terminará en tiranía militar —Napoleón le da la razón.</p><p>Sin embargo, Burke no es un reaccionario: admite que las instituciones pueden y deben reformarse. Pero la reforma ha de ser <strong>gradual</strong>, dentro de la continuidad, conservando lo probado mientras se mejora lo deficiente. La <strong>prudencia política</strong> es la virtud cardinal del estadista.</p>'
+  },
+  { sid:7, slabel:'Sem. 7 — Restauración', scolor:'rgba(165,60,75,0.85)',
+    sbg:'radial-gradient(ellipse 95% 65% at 28% -2%, rgba(128,38,50,0.25) 0%, transparent 60%), radial-gradient(ellipse 75% 65% at 82% 102%, rgba(85,28,38,0.20) 0%, transparent 55%), #0f0808',
+    q:'¿Cuál es el proyecto político de Guizot según Rosanvallon y por qué rechaza la democracia universal?',
+    src:'Rosanvallon, El momento Guizot, cap. 6',
+    a:'<p>François Guizot es el gran teórico del <strong>liberalismo doctrinario</strong> francés durante la Restauración y la Monarquía de Julio (1815–1848). Rosanvallon analiza cómo construye el argumento de la <strong>preponderancia política de las clases medias</strong>: los ciudadanos activos, propietarios e ilustrados —ni la aristocracia del Antiguo Régimen ni la masa popular.</p><p>El eje de su sistema es el concepto de <strong>capacidad</strong>: el derecho de participar en política no es universal ni hereditario sino que corresponde a quienes tienen la razón y la independencia necesarias para juzgar bien. La propiedad y la instrucción son los indicadores de esa capacidad, porque aseguran independencia económica y de criterio. El sufragio censitario no es una restricción injusta sino una <em>selección de los capaces</em>.</p><p>Guizot rechaza la democracia universal porque las masas —sin educación ni independencia económica— son manipulables y su participación lleva al demagogismo y la inestabilidad. Las clases medias merecen gobernar no por privilegio de sangre sino por <strong>mérito histórico</strong>: fueron ellas quienes ganaron las batallas de 1789 y 1830. El liberalismo doctrinario es el proyecto político de la burguesía que se reconoce como clase gobernante legítima —exactamente lo que Marx diagnosticará como "dominación de clase" desde el otro lado.</p>'
+  },
+  { sid:7, slabel:'Sem. 7 — Restauración', scolor:'rgba(160,60,70,0.85)',
+    sbg:'radial-gradient(ellipse 100% 70% at 50% 100%, rgba(140,40,50,0.22) 0%, transparent 60%), #0d0809',
+    q:'¿Cuál es la crítica de De Maistre a la soberanía popular y qué entiende él por la naturaleza absoluta de toda soberanía?',
+    src:'De Maistre, Estudio sobre la soberanía, Parte 1 Cap. I y Parte 2 Cap. I (~1794–96)',
+    a:'<p>De Maistre comienza con una trampa lógica: si el pueblo es soberano <em>de sí mismo</em>, es a la vez quien manda y quien obedece. El pueblo que gobierna no es el mismo que el pueblo que obedece. La representación no resuelve el problema: con 25 millones de franceses y turnos de diputados, cada ciudadano reinaría una vez cada miles de años. La proposición "el pueblo es soberano" es internamente contradictoria.</p><p>El debate entre origen divino u humano de la soberanía es, para De Maistre, una falsa dicotomía. Ambas son simultáneamente verdaderas: Dios quiso la sociedad; la sociedad necesita soberanía; luego Dios es el autor último. Pero como Dios no usa medios sobrenaturales, los hombres son sus instrumentos —igual que Dios crea al hombre aunque todos tengamos padre y madre.</p><p>En la Parte 2 establece que <strong>toda soberanía es absoluta por naturaleza</strong>: siempre existe un poder último que no puede ser juzgado ni castigado. Si hubiera un tribunal capaz de juzgar al soberano, ese tribunal sería el verdadero soberano —contradicción lógica. El ejemplo inglés lo confirma: cuando Rey, Comunes y Pares actúan de acuerdo forman una voluntad única e inapelable. La Constitución francesa de 1791 fracasó porque pretendió dividir la soberanía y en realidad creó una tiranía sin contrapeso.</p><p>Consecuencia: frente al soberano solo hay dos actitudes posibles —<strong>obediencia o insurrección</strong>. No se puede limitar la soberanía; solo se puede aspirar a que no quiera injustamente.</p>'
+  },
+  { sid:8, slabel:'Sem. 8 — Socialismo', scolor:'rgba(190,30,30,0.85)',
+    sbg:'radial-gradient(ellipse 108% 72% at 52% 102%, rgba(168,18,18,0.25) 0%, transparent 60%), radial-gradient(ellipse 82% 65% at -2% -2%, rgba(65,18,18,0.20) 0%, transparent 60%), #0b0808',
+    q:'¿Cuál es la tesis histórica central del Manifiesto Comunista y cuál es el papel revolucionario —y contradictorio— de la burguesía?',
+    src:'Marx y Engels, Manifiesto del Partido Comunista (1848)',
+    a:'<p>La tesis central del Manifiesto es que <strong>"la historia de todas las sociedades hasta nuestros días es la historia de las luchas de clases"</strong>. La sociedad moderna ha simplificado el antagonismo en dos grandes campos: <strong>burguesía</strong> y <strong>proletariado</strong>. Las clases intermedias están en proceso de absorción o desaparición.</p><p>Marx reconoce explícitamente el carácter revolucionario de la burguesía: destruyó el orden feudal, unificó los mercados, desarrolló las fuerzas productivas a escala mundial y convirtió todo en mercancía. <strong>"Todo lo sólido se desvanece en el aire"</strong>: ninguna tradición ni jerarquía puede resistir la presión transformadora del capital. Pero al hacerlo generó las contradicciones que llevarán a su propia ruina: concentró al proletariado en fábricas, lo privó de medios de producción propios y lo empujó inevitablemente hacia la consciencia de clase. La burguesía produce así a sus propios sepultureros.</p><p>En cuanto a la "democracia burguesa": el Estado representativo no es una conquista neutral sino el <strong>comité ejecutivo de la burguesía</strong>. Los derechos políticos formales enmascaran la dominación real en las relaciones de producción. La revolución proletaria debe conquistar el Estado, instaurar la "dictadura del proletariado" transitoriamente y finalmente abolir las clases y el Estado mismo —conexión con la concepción negativa del Estado que señala Bobbio.</p>'
+  },
+  { sid:8, slabel:'Sem. 8 — Socialismo', scolor:'rgba(190,30,30,0.85)',
+    sbg:'radial-gradient(ellipse 108% 72% at 52% 102%, rgba(168,18,18,0.25) 0%, transparent 60%), radial-gradient(ellipse 82% 65% at -2% -2%, rgba(65,18,18,0.20) 0%, transparent 60%), #0b0808',
+    q:'¿Qué aprende Marx del fracaso de 1848 según Berlin, y cómo contrasta su estilo intelectual con el de otros revolucionarios de la época?',
+    src:'Berlin, Karl Marx. Su vida y entorno, cap. 6 ("1848")',
+    a:'<p>Berlin retrata a Marx durante 1848 dirigiendo la <em>Nueva Gaceta Renana</em> desde Colonia, y lo distingue con precisión del clima romántico de la época. Mientras figuras como Bakunin o Garibaldi inspiraban devoción personal por su estilo heroico y vitalista, Marx era austero, sistemático y despectivo con el entusiasmo sin fundamento teórico. Para él, el pueblo sin teoría es una "fuerza bruta" incapaz de transformación duradera.</p><p>Tras el aplastamiento de las oleadas revolucionarias —Prusia sofoca la revolución alemana, Luis Napoleón da el golpe de Estado en Francia— Marx extrae conclusiones precisas. El proletariado fracasó no por falta de voluntad sino por dos causas: (1) <strong>prematuridad histórica</strong>: las condiciones del capitalismo maduro no estaban suficientemente desarrolladas; el proletariado no había alcanzado aún la madurez organizativa necesaria. (2) <strong>falta de organización disciplinada</strong> y comprensión teórica: las alianzas con la pequeña burguesía fueron traidoras porque sus intereses de clase divergen de los del proletariado en el momento decisivo.</p><p>La conclusión es la <strong>organización autónoma del proletariado</strong> con un programa científico propio. El partido debe ser la vanguardia que lleva la consciencia de clase a las masas desde afuera. Esta tesis es la semilla del debate marxismo/anarquismo (Bakunin vs. Marx en la Primera Internacional) y del debate marxismo/revisionismo (Bernstein) del siglo XX.</p>'
+  }
+];
+
+const SIDS = [...new Set(D.map(c => c.sid))];
+let filterSid = null;
+let idx = 0;
+let flipped = false;
+let anim = false;
+
+function cards() { return filterSid ? D.filter(c => c.sid === filterSid) : D; }
+
+function render(c) {
+  document.getElementById('bg-layer').style.background = c.sbg;
+  document.getElementById('tag-dot').style.background = c.scolor;
+  document.getElementById('tag-text').textContent = c.slabel;
+  document.getElementById('card-question').innerHTML = c.q;
+  document.getElementById('card-sources').textContent = c.src;
+  document.getElementById('card-answer').innerHTML = c.a;
+  const cs = cards(), li = cs.indexOf(c);
+  document.getElementById('nav-counter').textContent = `${li+1} / ${cs.length}`;
+  document.getElementById('btn-prev').disabled = li === 0;
+  document.getElementById('btn-next').disabled = li === cs.length - 1;
+}
+
+function show(i) {
+  if (anim) return; anim = true;
+  const ov = document.getElementById('overlay');
+  ov.classList.add('flash');
+  flipped = false;
+  document.getElementById('flipper').classList.remove('flipped');
+  setTimeout(() => {
+    idx = i; render(cards()[idx]);
+    ov.classList.remove('flash');
+    const card = document.getElementById('card');
+    card.style.animation = 'none'; card.offsetHeight;
+    card.style.animation = 'cardIn 0.55s cubic-bezier(0.16,1,0.3,1) both';
+    setTimeout(() => { anim = false; }, 300);
+  }, 180);
+}
+
+function handleFlip() {
+  if (anim) return;
+  flipped = !flipped;
+  document.getElementById('flipper').classList.toggle('flipped', flipped);
+}
+function prevCard() { if (idx > 0) show(idx - 1); }
+function nextCard() { const cs = cards(); if (idx < cs.length - 1) show(idx + 1); }
+
+function buildPills() {
+  const bar = document.getElementById('semana-bar');
+  bar.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'sem-pill' + (!filterSid ? ' active' : '');
+  all.textContent = 'Todas';
+  all.onclick = () => { filterSid = null; buildPills(); show(0); };
+  bar.appendChild(all);
+  SIDS.forEach(sid => {
+    const sample = D.find(c => c.sid === sid);
+    const btn = document.createElement('button');
+    btn.className = 'sem-pill' + (filterSid === sid ? ' active' : '');
+    btn.textContent = `Sem. ${sid}`;
+    btn.onclick = () => { filterSid = sid; buildPills(); show(0); };
+    bar.appendChild(btn);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextCard();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   prevCard();
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleFlip(); }
+});
+
+document.getElementById('bg-layer').style.transition = 'background 1.1s cubic-bezier(0.4,0,0.2,1)';
+buildPills();
+render(cards()[0]);
+</script>
+</body>
+</html>
